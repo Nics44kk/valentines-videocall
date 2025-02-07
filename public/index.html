@@ -107,6 +107,7 @@
                 localVideo.srcObject = localStream;
             } catch (error) {
                 console.error('Error accessing media devices.', error);
+                alert('Could not access the camera. Please check your permissions.');
             }
         }
 
