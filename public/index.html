@@ -60,7 +60,7 @@
         <video id="localVideo" autoplay muted></video>
         <video id="remoteVideo" autoplay></video>
     </div>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script>
         const socket = io();
         const localVideo = document.getElementById('localVideo');
@@ -86,11 +86,16 @@
             console.log('Paired with:', id);
             await startLocalStream();
             createPeerConnection(id);
+        });
+
         socket.on('signal', (data) => {
-                if (data.from !== id) {
-                    peerConnection.signal(data.signal);
+            if (data.from !== id) {
+                if (data.signal.candidate) {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
+                } else {
+                    peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
                 }
-            });
+            }
         });
 
         async function startLocalStream() {
