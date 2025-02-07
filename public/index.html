@@ -86,58 +86,52 @@
             console.log('Paired with:', id);
             await startLocalStream();
             createPeerConnection(id);
+        socket.on('signal', (data) => {
+                if (data.from !== id) {
+                    peerConnection.signal(data.signal);
+                }
+            });
         });
 
         async function startLocalStream() {
-            localStream = await navigator.mediaDevices.getUser Media({ video: true, audio: true });
-            local Video.srcObject = localStream;
+            try {
+                localStream = await navigator.mediaDevices.getUser Media({
+                    video: true,
+                    audio: true
+                });
+                localVideo.srcObject = localStream;
+            } catch (error) {
+                console.error('Error accessing media devices.', error);
+            }
         }
 
         function createPeerConnection(remoteId) {
             peerConnection = new RTCPeerConnection(configuration);
 
-            // Add local stream tracks to the peer connection
             localStream.getTracks().forEach(track => {
                 peerConnection.addTrack(track, localStream);
             });
 
-            // Handle incoming tracks
-            peerConnection.ontrack = (event) => {
-                remoteVideo.srcObject = event.streams[0];
-            };
-
-            // Handle ICE candidates
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
                     socket.emit('signal', { to: remoteId, signal: event.candidate });
                 }
             };
 
-            // Create an offer
-            peerConnection.createOffer().then(offer => {
-                return peerConnection.setLocalDescription(offer);
-            }).then(() => {
-                socket.emit('signal', { to: remoteId, signal: peerConnection.localDescription });
-            });
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
 
-            // Handle incoming signals
-            socket.on('signal', (data) => {
-                if (data.from === remoteId) {
-                    if (data.signal.type === 'offer') {
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal)).then(() => {
-                            return peerConnection.createAnswer();
-                        }).then(answer => {
-                            return peerConnection.setLocalDescription(answer);
-                        }).then(() => {
-                            socket.emit('signal', { to: remoteId, signal: peerConnection.localDescription });
-                        });
-                    } else if (data.signal.type === 'answer') {
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
-                    } else {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
-                    }
-                }
-            });
+            peerConnection.createOffer()
+                .then(offer => {
+                    return peerConnection.setLocalDescription(offer);
+                })
+                .then(() => {
+                    socket.emit('signal', { to: remoteId, signal: peerConnection.localDescription });
+                })
+                .catch(error => {
+                    console.error('Error creating offer:', error);
+                });
         }
     </script>
 </body>
